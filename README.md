@@ -25,4 +25,4 @@ If he sends a text message to 2000 he will get a response back saying please con
 
 Pamphlet of instructions used in PearlCel pilot:
 
-![Fishline Pamphlet](https://github.com/saycel/FishLine/blob/master/images-for-readme/Fishline%20Pamphlet.jpg)
+![Fishline Pamphlet](https://github.com/saycel/FishLine/blob/master/images-for-readme/Fishline%20Pamphlet%20(1).jpg)
