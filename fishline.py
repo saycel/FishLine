@@ -1,3 +1,28 @@
+#!/usr/bin/env python 
+# -*- coding: utf-8 -*-
+############################################################################
+# 
+# Created by Talal Ahmed, and Edwin Reed-Sanchez
+#
+# Fishline
+# 
+#
+# Fishline is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Fishline is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero Public License for more details.
+#
+# You should have received a copy of the GNU Affero Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+############################################################################
+
+
 import sys
 sys.path.append("..")
 from config import *
@@ -58,6 +83,19 @@ class fishline:
 		else:
 			return None
 
+	def checkAdvertiser(self,sender):
+		conn = sqlite3.connect('/home/rhizomatica/fishline.db')
+		query = "select initials from advertisers where frm = '%s'" %(sender)
+		c = conn.cursor()
+		c.execute(query)
+		ad = c.fetchone()
+		conn.commit()
+		conn.close()
+		if ad is not None:
+			return True	
+		else:
+			return False
+
 	def setState(self, sender, state):
 		if self.getState(sender)==None:
 			query = "insert into userStates values('%s','%s')" %(sender,state);
@@ -79,91 +117,70 @@ class fishline:
 		conn.commit()
 		conn.close()
 
-	def receive(self, sender, text):
-		#parse the text message and see that is the state of the sender and respond back accordingly. 
-		#print 'in receive function of fishline';
-		conn = sqlite3.connect('/home/rhizomatica/fishline.db')
-		c=conn.cursor()
-		query = "INSERT into allMessages values(%d,'%s','%s');" %(time.time(),sender,text)
-		print query
-		c.execute(query)
-		conn.commit()
-		conn.close()
-		
-		text = text.lower();
-		
+	def receive(self, sender, to, text):
 		senderState = self.getState(sender)
-
-		if 'yes' not in text and 'no' not in text and 'unsubscribe' not in text and 'subscribe' not in text:
-			#self.state[sender] = 'probablyadvertiser'
-			self.setState(sender,'probablyadvertiser')
-			newText = "Want to advertise this: "+text+". Reply yes or no"
-			self.send(sender,newText)
-			self.setAdd(sender,text)
-
+		sms_log.info("senderState=%s" %senderState);
+		sms_log.info("to=%s" %to);
+		if 'subscribe' in text.lower() and to == '20000':
+			self.setState(sender,'done');
+			self.send(20000,sender,'You are subscribed to fishline')
+			query = "Insert into advertisers values (%d,'%s','%s')" %(time.time(),sender,text.split()[-1])
+			conn = sqlite3.connect('/home/rhizomatica/fishline.db')
+			c=conn.cursor()
+			print query
+			c.execute(query)
+			conn.commit()
+			conn.close()
 			return
-		else:
-			if 'subscribe' in text:
-				#self.state[sender] = 'done'
-				self.setState(sender,'done');
-				self.send(sender,'You are subscribed to fishline')
-				query = "Insert into advertisers values (%d,'%s','%s')" %(time.time(),sender,text.split()[-1])
-				conn = sqlite3.connect('/home/rhizomatica/fishline.db')
-				c=conn.cursor()
-				print query
-                		c.execute(query)
-                		conn.commit()
-                		conn.close()
-				return
-			if senderState == 'probablyadvertiser' and text=='yes':
-				query = "select initials from advertisers where frm = '%s'" %sender
-				conn = sqlite3.connect('/home/rhizomatica/fishline.db')
-				c = conn.cursor()
-				print query
-				c.execute(query)
-				initials = c.fetchone()
-				initials = initials[0]
-				conn.commit()
-				conn.close()
-				
-				#initials = 'TA'
-				self.setState(sender,'advertiser')
-				#self.lastadvertisement=self.advertisements[sender][-1]
-				#self.lastadvertiser = sender
-				print initials.upper()
-				string = ". If interested reply 'yes %s' or unsubscribe at any time" %(initials.upper())
-				self.lastadvertisement=self.getAdd(sender)
-				self.sendbulk('20000',self.lastadvertisement+string)
-
-				
-			elif senderState == 'probablyadvertiser' and text=='no':
-				self.setState(sender,'done')
-				self.send(sender,'To send a Fish Line text your message to 20000');
-				return
- 
-			elif 'yes' in text:
-				initials = text.split()[-1]
-				query = "select frm from advertisers where initials = '%s'" %(initials)
-				conn=sqlite3.connect('/home/rhizomatica/fishline.db')
-				c = conn.cursor()
-				print query
-				c.execute(query)
-				advertiser = c.fetchone()
+		elif to=='20000' and self.checkAdvertiser(sender) is True:# and senderState!='probablyadvertiser':
+			#self.state[sender] = 'probablyadvertiser'
+			query = "select initials from advertisers where frm = '%s'" %sender
+			conn = sqlite3.connect('/home/rhizomatica/fishline.db')
+			c = conn.cursor()
+			print query
+			c.execute(query)
+			initials = c.fetchone()
+			initials = initials[0]
+			conn.commit()
+			conn.close()
+			
+			#initials = 'TA'
+			self.setState(sender,'advertiser')
+			#self.lastadvertisement=self.advertisements[sender][-1]
+			#self.lastadvertiser = sender
+			print initials.upper()
+			string = ". If interested reply 'yes %s' " %(initials.upper())
+			#self.lastadvertisement=self.getAdd(sender)
+			self.lastadvertisement=text
+			self.sendbulk('30000',self.lastadvertisement+string)
+			return
+		elif 'yes ' in text.lower() and to =='30000':
+			initials = text.split()[-1]
+			query = "select frm from advertisers where initials = '%s'" %(initials)
+			conn=sqlite3.connect('/home/rhizomatica/fishline.db')
+			c = conn.cursor()
+			print query
+			c.execute(query)
+			advertiser = c.fetchone()
+			if advertiser is not None:
 				advertiser = advertiser[0]
 				conn.commit()
 				conn.close()
-				self.send(sender,'Please contact the advertiser at'+advertiser)
-				return
+				self.send(30000,sender,'Please contact the advertiser at'+advertiser)
+				self.send(30000,advertiser,'Please contact the buyer at'+sender)
+			else:
+				self.send(30000,sender,'Please reply again, I did not find that advertiser.')
+			return
+		else:
+			self.send(30000,sender,"Welcome to fishline. Contact 43333 for more information.")
 				
-			
-
 	
-	def send(self, sender, text):
+	def send(self, frm, sender, text):
 		#send the message on behalf of the applcation
 		#figure out if the message is bulk. 
 		s = sms.SMS()
 		try:
-        		s.send(20000, sender, text)
+        		s.send(frm, sender, text)
         	#sms.send_broadcasit('antani')
     		except SMSException as e:
     			print "Error: %s" % e
@@ -192,8 +209,13 @@ if __name__ == '__main__':
 	fish = fishline()
 	#fish.receive('11221148054',"advertise potato")
 	#fish.receive('11221148054',"yes")
-	fish.receive('11221127419','yes TA')
+	#fish.receive('11221127419','yes TA')
 	#fish.getState('1122114')
 	#fish.setState('1122114','hello')
 	#fish.setState('1122114','hellow2')
 	#fish.setAdd('11221148054','advertise new potato');
+	#print fish.checkAdvertiser('11221148054');
+	fish.receive('11221148054','30000','yes TA');
+	#fish.receive('11221148054','20000','yes');
+	
+	#fish.sendbulk('30000','hello all');
