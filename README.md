@@ -21,3 +21,8 @@ How to use the application:
 You have to subscribe a user before he can start advertising. You subscribe by sending an "subscribe TA" to 20000. Instead of TA use the initials of the fisherman. Now he can advertise. 
 
 If he sends a text message to 2000 he will get a response back saying please confirm. If he replies yes his add will be sent to everyone. 
+
+
+Pamphlet of instructions used in PearlCel pilot:
+
+![Fishline Pamphlet](https://github.com/saycel/FishLine/blob/master/images-for-readme/Fishline%20Pamphlet.jpg)
